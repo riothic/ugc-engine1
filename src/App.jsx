@@ -216,16 +216,21 @@ Output a valid JSON containing exactly:
       };
 
       const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      if (!response.ok) {
+        const errBody = await response.text();
+        let detail = errBody;
+        try { detail = JSON.parse(errBody)?.error?.message || errBody; } catch (_) {}
+        throw new Error(`HTTP ${response.status}: ${detail}`);
+      }
       const data = await response.json();
       
       const generatedJsonText = data.candidates?.[0]?.content?.parts?.[0]?.text;
       if (generatedJsonText) {
         setRawJsonString(generatedJsonText);
         setJsonResult(JSON.parse(generatedJsonText));
-      } else { throw new Error('Format invalid.'); }
+      } else { throw new Error('Format invalid: ' + JSON.stringify(data).slice(0, 300)); }
     } catch (err) {
-      console.error(err); setError('Gagal menghasilkan JSON. Cek koneksi atau kuota API.');
+      console.error(err); setError(`Gagal: ${err.message}`);
     } finally { setLoading(false); }
   };
 
